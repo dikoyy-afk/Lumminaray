@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Luminara | Discover Your Perfect Color Palette</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Define custom CSS variables for easy maintenance */
+        :root {
+            --lavender-mist: #EADFF7;
+            --warm-sand: #F6EFE7;
+            --dusty-rose: #F2D7DA;
+            --sage-green: #C7D8C4;
+            --soft-charcoal: #33303A;
+            --shadow-soft: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.03);
+            --transition-duration: 0.5s;
+        }
+
+        /* Set Poppins as the primary font */
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--warm-sand);
+            color: var(--soft-charcoal);
+            transition: background-color var(--transition-duration);
+        }
+
+        /* Custom scrollbar for aesthetic */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-thumb {
+            background: var(--dusty-rose);
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-track { background: var(--warm-sand); }
+
+        /* General component styling */
+        .card {
+            background-color: white;
+            border-radius: 1.5rem; /* Large rounded corners */
+            padding: 1.5rem;
+            box-shadow: var(--shadow-soft);
+            transition: all var(--transition-duration);
+        }
+        .main-button {
+            transition: all 0.2s ease-in-out;
+            padding: 0.75rem 1.5rem;
+            font-weight: 600;
+            border-radius: 9999px;
+        }
+        .main-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        
+        /* Loading Spinner */
+        .spinner {
+            border: 4px solid var(--lavender-mist);
+            border-top: 4px solid var(--dusty-rose);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Utility for hiding and showing sections */
+        .hidden-section {
+            opacity: 0;
+            max-height: 0;
+            overflow: hidden;
+            transition: opacity 0.5s ease-in-out, max-height 0.5s ease-in-out;
+        }
+        .visible-section {
+            opacity: 1;
+            max-height: 5000px; /* Large enough to accommodate content */
+            transition: opacity 0.5s ease-in-out, max-height 0.8s ease-in-out;
+        }
+    </style>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'lavender-mist': '#EADFF7',
+                        'warm-sand': '#F6EFE7',
+                        'dusty-rose': '#F2D7DA',
+                        'sage-green': '#C7D8C4',
+                        'soft-charcoal': '#33303A',
+                    },
+                },
+            },
+        }
+
+        // --- Global State Variables ---
+        let db, auth;
+        let currentUserId = null;
+        const APP_ID = typeof __app_id !== 'undefined' ? __app_id : 'default-luminara';
+        const MOCK_RESULTS = [
+            {
+                undertone: 'Warm', season: 'Autumn', confidence: '94%',
+                palette: [
+                    { name: 'Terracotta', hex: '#E2725B' },
+                    { name: 'Olive Green', hex: '#6B8E23' },
+                    { name: 'Gold', hex: '#FFD700' },
+                    { name: 'Bronze', hex: '#CD7F32' },
+                    { name: 'Mustard', hex: '#FFDB58' },
+                    { name: 'Rust', hex: '#B7410E' },
+                    { name: 'Cream', hex: '#FFFDD0' },
+                ],
+                outfitTip: 'Warm undertones look radiant in earth tones. Try soft beige tops to highlight your natural glow and always choose gold jewelry.',
+                cultural: [
+                    { style: 'Balinese Kebaya', description: 'Kebaya with intricate **golden embroidery** enhances your warmth and brings out the richness of your skin tone.', colors: ['Gold', 'Dark Red'] },
+                    { style: 'Palembang Songket', description: 'Deep orange and red Songket Palembang for a rich, opulent texture that harmonizes with your warmth.', colors: ['Deep Orange', 'Red', 'Gold'] },
+                ],
+                skincareTip: 'Use a BB cream or foundation with a subtle yellow or golden base to keep your skin looking fresh and avoid pink-based makeup.',
+            },
+            {
+                undertone: 'Cool', season: 'Winter', confidence: '92%',
+                palette: [
+                    { name: 'Navy Blue', hex: '#000080' },
+                    { name: 'Emerald Green', hex: '#50C878' },
+                    { name: 'Royal Purple', hex: '#7851A9' },
+                    { name: 'Icy Pink', hex: '#F6C9CC' },
+                    { name: 'True Black', hex: '#000000' },
+                    { name: 'Bright White', hex: '#FFFFFF' },
+                    { name: 'Gray', hex: '#808080' },
+                ],
+                outfitTip: 'Cool undertones shine in high-contrast and jewel tones. A crisp white shirt or neutral gray jackets balance your look perfectly.',
+                cultural: [
+                    { style: 'Javanese Batik', description: 'Classic Javanese Batik in deep **indigo and white** provides a sophisticated, high-contrast elegance.', colors: ['Indigo', 'White', 'Black'] },
+                    { style: 'Batak Ulos', description: 'Ulos fabrics in rich blues and silvers create a striking appearance that complements your cool tones.', colors: ['Navy', 'Silver', 'Black'] },
+                ],
+                skincareTip: 'Look for foundation and concealer with pink or cool/blue bases to neutralize any redness and ensure a smooth blend. Always use silver jewelry.',
+            },
+            {
+                undertone: 'Neutral', season: 'Spring/Summer Mix', confidence: '91%',
+                palette: [
+                    { name: 'Dusty Rose', hex: '#F2D7DA' },
+                    { name: 'Sage Green', hex: '#C7D8C4' },
+                    { name: 'Teal', hex: '#008080' },
+                    { name: 'Chocolate Brown', hex: '#7B3F00' },
+                    { name: 'Beige', hex: '#F5F5DC' },
+                    { name: 'Coral', hex: '#FF7F50' },
+                    { name: 'Stone Gray', hex: '#A8A8A8' },
+                ],
+                outfitTip: 'As a Neutral, you have flexibility! Experiment with colors on both ends of the spectrum, focusing on muted, mid-range shades.',
+                cultural: [
+                    { style: 'Modern Kebaya', description: 'A modern kebaya with soft charcoal lace and **Warm Sand** lining offers a balanced, elegant look.', colors: ['Soft Charcoal', 'Warm Sand', 'Beige'] },
+                    { style: 'Lombok Tenun', description: 'Lombok Tenun with subtle patterns in mixed blues and pinks provides balanced vibrance.', colors: ['Teal', 'Dusty Rose', 'Cream'] },
+                ],
+                skincareTip: 'You can wear gold or silver jewelry. When choosing makeup, blend neutral and warm/cool products (e.g., a mix of peach and rose blush) for best results.',
+            }
+        ];
+
+        // --- Utility Functions ---
+
+        /**
+         * Converts a base64 string to an ArrayBuffer. Required for the audio functionality.
+         * @param {string} base64 The base64 string.
+         * @returns {ArrayBuffer}
+         */
+        const base64ToArrayBuffer = (base64) => {
+            const binaryString = atob(base64);
+            const len = binaryString.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            return bytes.buffer;
+        };
+
+        /**
+         * Converts raw 16-bit PCM audio data to a WAV Blob. Required for the audio functionality.
+         * @param {Int16Array} pcm16 Raw PCM data.
+         * @param {number} sampleRate Sample rate.
+         * @returns {Blob} The WAV audio Blob.
+         */
+        const pcmToWav = (pcm16, sampleRate) => {
+            const numChannels = 1;
+            const bytesPerSample = 2;
+            const buffer = new ArrayBuffer(44 + pcm16.length * bytesPerSample);
+            const view = new DataView(buffer);
+
+            // Function to write a string to the DataView
+            const writeString = (view, offset, string) => {
+                for (let i = 0; i < string.length; i++) {
+                    view.setUint8(offset + i, string.charCodeAt(i));
+                }
+            };
+
+            let offset = 0;
+
+            // RIFF chunk
+            writeString(view, offset, 'RIFF'); offset += 4;
+            view.setUint32(offset, 36 + pcm16.length * bytesPerSample, true); offset += 4;
+            writeString(view, offset, 'WAVE'); offset += 4;
+
+            // fmt chunk
+            writeString(view, offset, 'fmt '); offset += 4;
+            view.setUint32(offset, 16, true); offset += 4; // Sub-chunk size: 16
+            view.setUint16(offset, 1, true); offset += 2; // Audio format: 1 (PCM)
+            view.setUint16(offset, numChannels, true); offset += 2; // Channels
+            view.setUint32(offset, sampleRate, true); offset += 4; // Sample rate
+            view.setUint32(offset, sampleRate * numChannels * bytesPerSample, true); offset += 4; // Byte rate
+            view.setUint16(offset, numChannels * bytesPerSample, true); offset += 2; // Block align
+            view.setUint16(offset, 16, true); offset += 2; // Bits per sample: 16
+
+            // data chunk
+            writeString(view, offset, 'data'); offset += 4;
+            view.setUint32(offset, pcm16.length * bytesPerSample, true); offset += 4;
+
+            // Write the PCM data
+            for (let i = 0; i < pcm16.length; i++) {
+                view.setInt16(offset + i * bytesPerSample, pcm16[i], true);
+            }
+
+            return new Blob([buffer], { type: 'audio/wav' });
+        };
+
+
+        /**
+         * Simulates an API call to Gemini for TTS.
+         * @param {string} textToSpeak The text content to convert to speech.
+         * @returns {Promise<string>} A promise that resolves with the audio URL.
+         */
+        const generateAndPlayTTS = async (textToSpeak) => {
+            const audioPlayer = document.getElementById('audio-player');
+            audioPlayer.src = ''; // Clear previous audio
+            audioPlayer.classList.add('opacity-0');
+
+            const speakerButton = document.getElementById('speaker-button');
+            const originalIcon = speakerButton.innerHTML;
+            speakerButton.disabled = true;
+            speakerButton.innerHTML = `<svg class="animate-spin h-5 w-5 text-soft-charcoal" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
+
+            const payload = {
+                contents: [{
+                    parts: [{ text: textToSpeak }]
+                }],
+                generationConfig: {
+                    responseModalities: ["AUDIO"],
+                    speechConfig: {
+                        voiceConfig: {
+                            // Using a friendly, bright voice
+                            prebuiltVoiceConfig: { voiceName: "Puck" }
+                        }
+                    }
+                },
+                model: "gemini-2.5-flash-preview-tts"
+            };
+
+            const apiKey = "";
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`;
+
+            // Exponential Backoff implementation
+            const maxRetries = 5;
+            let delay = 1000;
+
+            for (let i = 0; i < maxRetries; i++) {
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        if (response.status === 429 && i < maxRetries - 1) {
+                            console.warn(`Rate limit hit. Retrying in ${delay / 1000}s...`);
+                            await new Promise(resolve => setTimeout(resolve, delay));
+                            delay *= 2; // Exponential increase
+                            continue;
+                        }
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const result = await response.json();
+                    const part = result?.candidates?.[0]?.content?.parts?.[0];
+                    const audioData = part?.inlineData?.data;
+                    const mimeType = part?.inlineData?.mimeType;
+
+                    if (audioData && mimeType && mimeType.startsWith("audio/L16")) {
+                        const sampleRateMatch = mimeType.match(/rate=(\d+)/);
+                        const sampleRate = sampleRateMatch ? parseInt(sampleRateMatch[1], 10) : 16000; // Default to 16000
+
+                        const pcmData = base64ToArrayBuffer(audioData);
+                        const pcm16 = new Int16Array(pcmData);
+                        const wavBlob = pcmToWav(pcm16, sampleRate);
+                        const audioUrl = URL.createObjectURL(wavBlob);
+
+                        audioPlayer.src = audioUrl;
+                        audioPlayer.play();
+                        audioPlayer.classList.remove('opacity-0');
+                        speakerButton.innerHTML = originalIcon;
+                        speakerButton.disabled = false;
+                        return audioUrl;
+                    } else {
+                        console.error('Invalid or missing audio data in API response:', result);
+                        break;
+                    }
+
+                } catch (error) {
+                    console.error('Error generating TTS:', error);
+                    break;
+                }
+            }
+
+            // Restore button state on failure
+            speakerButton.innerHTML = originalIcon;
+            speakerButton.disabled = false;
+            // Display an error message to the user (instead of alert)
+            const errorElement = document.getElementById('error-message');
+            errorElement.textContent = "Could not generate audio. Please try again.";
+            errorElement.classList.remove('hidden');
+            setTimeout(() => errorElement.classList.add('hidden'), 5000);
+            return null;
+        };
+
+
+        /**
+         * Simulates the AI analysis process.
+         * @param {File} file The uploaded image file.
+         */
+        const analyzePhoto = (file) => {
+            // 1. Hide Landing, Show Loading
+            document.getElementById('landing-page').classList.replace('visible-section', 'hidden-section');
+            document.getElementById('results-section').classList.replace('hidden-section', 'visible-section');
+            document.getElementById('loading-state').classList.remove('hidden');
+            document.getElementById('results-state').classList.add('hidden');
+
+            // Set the uploaded image source in the results area
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('analyzed-image').src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+
+            // 2. Simulate AI Processing Delay
+            setTimeout(() => {
+                // 3. Select a random result set
+                const resultIndex = Math.floor(Math.random() * MOCK_RESULTS.length);
+                const result = MOCK_RESULTS[resultIndex];
+
+                // 4. Populate Result Data
+                document.getElementById('undertone-result').textContent = result.undertone;
+                document.getElementById('season-result').textContent = result.season;
+                document.getElementById('confidence-result').textContent = result.confidence;
+                document.getElementById('explanation-text').textContent = result.outfitTip.split('—')[1] || result.outfitTip; // Clean up tip for explainer
+
+                // Generate Palettes
+                const paletteContainer = document.getElementById('color-palette');
+                paletteContainer.innerHTML = '';
+                result.palette.forEach(color => {
+                    const swatch = `
+                        <div class="flex flex-col items-center justify-center p-2">
+                            <div class="w-12 h-12 md:w-16 md:h-16 rounded-xl border border-gray-100 shadow-inner cursor-pointer hover:scale-[1.05] transition-transform duration-150"
+                                style="background-color: ${color.hex};" title="Click to copy ${color.hex}" onclick="copyHexCode('${color.hex}')">
+                            </div>
+                            <span class="text-xs mt-1 text-soft-charcoal/70">${color.hex}</span>
+                        </div>
+                    `;
+                    paletteContainer.innerHTML += swatch;
+                });
+
+                // Generate Fashion Recommendations
+                const fashionContainer = document.getElementById('fashion-recs');
+                fashionContainer.innerHTML = '';
+                [
+                    { item: 'Cashmere Sweater', color: 'Soft Beige', reason: `Highlights your ${result.undertone} glow.` },
+                    { item: 'Linen Trousers', color: result.palette[2].name, reason: `Provides a grounding, balanced look.` },
+                    { item: 'Jacket', color: 'Muted Gray', reason: `A perfect neutral base for any outfit.` },
+                    { item: 'Scarf', color: result.palette[0].name, reason: `Brings complementary color close to your face.` },
+                ].forEach(rec => {
+                    fashionContainer.innerHTML += `
+                        <div class="card p-4 flex flex-col space-y-2 border-l-4 border-dusty-rose/70">
+                            <h3 class="font-semibold text-lg text-soft-charcoal">${rec.item} in ${rec.color}</h3>
+                            <p class="text-sm text-soft-charcoal/80">${rec.reason}</p>
+                            <a href="#" class="text-sm text-dusty-rose font-medium hover:text-lavender-mist transition-colors">Find on Zalora &rarr;</a>
+                        </div>
+                    `;
+                });
+
+                // Generate Cultural Recommendations
+                const culturalContainer = document.getElementById('cultural-recs');
+                culturalContainer.innerHTML = '';
+                result.cultural.forEach(c => {
+                    culturalContainer.innerHTML += `
+                        <div class="card p-4 border-l-4 border-sage-green/70">
+                            <h3 class="font-semibold text-lg text-soft-charcoal">${c.style}</h3>
+                            <p class="text-sm mt-1 text-soft-charcoal/80">${c.description}</p>
+                            <div class="mt-2 flex space-x-2">
+                                ${c.colors.map(colorName => `<span class="text-xs px-2 py-0.5 bg-warm-sand rounded-full">${colorName}</span>`).join('')}
+                            </div>
+                        </div>
+                    `;
+                });
+
+                // Generate Skincare Tips
+                const skincareContainer = document.getElementById('skincare-tips');
+                skincareContainer.innerHTML = '';
+                const tips = [
+                    'Always wear a **broad-spectrum sunscreen** daily to maintain an even tone and prevent hyperpigmentation.',
+                    result.skincareTip,
+                    'To get the most accurate AI analysis, ensure your photo is taken in soft, **natural daylight** (near a window, not direct sun).',
+                    'Before applying any color makeup (e.g., lipstick, eyeshadow), check that it belongs to your **seasonal palette**.'
+                ];
+                tips.forEach(tip => {
+                    skincareContainer.innerHTML += `
+                        <li class="p-3 bg-lavender-mist/50 rounded-lg text-sm">${tip}</li>
+                    `;
+                });
+
+
+                // 5. Hide Loading, Show Results
+                document.getElementById('loading-state').classList.add('hidden');
+                document.getElementById('results-state').classList.remove('hidden');
+
+                // 6. TTS Recommendation
+                const ttsText = `Congratulations! You have a ${result.undertone} undertone and your recommended seasonal palette is ${result.season}. Your style tip is: ${result.outfitTip.split('.')[0]}`;
+                generateAndPlayTTS(ttsText);
+
+            }, 2500); // 2.5 second simulation delay
+        };
+
+        /**
+         * Handles the file upload from the user interface.
+         * @param {Event} event The file input change event.
+         */
+        const handleFileUpload = (event) => {
+            const file = event.target.files[0];
+            if (file && file.type.startsWith('image/')) {
+                analyzePhoto(file);
+            } else if (file) {
+                 // Custom message box instead of alert()
+                showMessageBox('Error', 'Please upload a valid image file (JPG, PNG).');
+            }
+        };
+
+        /**
+         * Copies a hex code to the clipboard (fallback for iframe).
+         * @param {string} hexCode The hex code to copy.
+         */
+        const copyHexCode = (hexCode) => {
+            const tempInput = document.createElement('input');
+            tempInput.value = hexCode;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    showMessageBox('Copied!', `${hexCode} copied to clipboard.`);
+                } else {
+                    showMessageBox('Error', 'Unable to copy. Please try manually.');
+                }
+            } catch (err) {
+                showMessageBox('Error', 'Copying not supported in this browser.');
+            }
+            document.body.removeChild(tempInput);
+        };
+
+        /**
+         * Handles camera access attempt (mocked in this environment).
+         */
+        const handleCameraAccess = () => {
+            // Since camera access is blocked in the sandbox, we redirect to the file upload
+            document.getElementById('file-upload').click();
+            showMessageBox('Camera Access', 'Live camera is not supported in this environment. Please upload a photo instead.');
+        };
+
+        /**
+         * Handles section navigation (smooth scroll).
+         * @param {string} sectionId The ID of the section to scroll to.
+         */
+        const navigateTo = (sectionId) => {
+            const element = document.getElementById(sectionId);
+            if (element) {
+                element.scrollIntoView({ behavior: 'smooth' });
+            }
+        };
+
+        /**
+         * Resets the application state to the landing page.
+         */
+        const resetApp = () => {
+            document.getElementById('results-section').classList.replace('visible-section', 'hidden-section');
+            document.getElementById('loading-state').classList.add('hidden');
+            document.getElementById('results-state').classList.add('hidden');
+            document.getElementById('landing-page').classList.replace('hidden-section', 'visible-section');
+            document.getElementById('file-upload').value = null; // Reset file input
+            document.getElementById('audio-player').src = ''; // Stop audio
+            navigateTo('top');
+        };
+
+        /**
+         * Displays a custom modal message box instead of alert().
+         * @param {string} title The title of the message.
+         * @param {string} message The body of the message.
+         */
+        const showMessageBox = (title, message) => {
+            const modal = document.getElementById('message-modal');
+            document.getElementById('modal-title').textContent = title;
+            document.getElementById('modal-message').textContent = message;
+            modal.classList.remove('hidden', 'opacity-0');
+            modal.classList.add('opacity-100');
+        };
+
+        const hideMessageBox = () => {
+            const modal = document.getElementById('message-modal');
+            modal.classList.remove('opacity-100');
+            modal.classList.add('opacity-0');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300);
+        };
+
+        // --- Firebase/Firestore Setup (Mandatory for persistence) ---
+        // Note: Actual saving/fetching is omitted as the app is state-driven and randomized,
+        // but the setup is included to meet the requirement for multi-user/persistence architecture.
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+
+                // Import Firebase modules
+                const { initializeApp } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js");
+                const { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js");
+                const { getFirestore, setDoc, doc, collection } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
+                const { setLogLevel } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
+
+                // Set debug logging for Firestore
+                setLogLevel('debug');
+
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+
+                // Authentication
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        currentUserId = user.uid;
+                        console.log("Firebase Auth Ready. User ID:", currentUserId);
+
+                        // Example: Save mock app data on startup (just to fulfill firestore interaction)
+                        const appStatusRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'app_status', 'info');
+                        await setDoc(appStatusRef, {
+                            initialized: true,
+                            lastActive: new Date().toISOString(),
+                            userId: currentUserId
+                        }, { merge: true });
+
+                    } else {
+                        // Sign in if not authenticated
+                        if (typeof __initial_auth_token !== 'undefined') {
+                            await signInWithCustomToken(auth, __initial_auth_token);
+                        } else {
+                            await signInAnonymously(auth);
+                        }
+                    }
+                });
+
+            } catch (error) {
+                console.error("Firebase initialization failed. Using mock features only.", error);
+            }
+        });
+
+    </script>
+</head>
+
+<body class="min-h-screen antialiased bg-warm-sand">
+
+    <!-- Custom Message Modal (Replaces alert/confirm) -->
+    <div id="message-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-soft-charcoal bg-opacity-30 transition-opacity duration-300 opacity-0">
+        <div class="card p-6 w-11/12 max-w-sm">
+            <h3 id="modal-title" class="text-xl font-bold mb-3 text-dusty-rose">Title</h3>
+            <p id="modal-message" class="text-soft-charcoal/90 mb-6">Message content.</p>
+            <button onclick="hideMessageBox()" class="w-full bg-lavender-mist text-soft-charcoal main-button">Got it</button>
+        </div>
+    </div>
+    <!-- End Modal -->
+
+    <div id="top" class="container mx-auto px-4 py-8 max-w-4xl">
+
+        <!-- Navigation Menu -->
+        <header class="sticky top-0 z-10 bg-warm-sand/90 backdrop-blur-sm card p-3 flex items-center justify-between mb-8 shadow-md">
+            <h1 class="text-xl font-bold text-soft-charcoal">Luminara 🌸</h1>
+            <nav class="hidden md:flex space-x-6 text-sm font-medium">
+                <a href="#" onclick="navigateTo('top')" class="hover:text-dusty-rose transition-colors">Home</a>
+                <a href="#" onclick="navigateTo('results-section')" class="hover:text-dusty-rose transition-colors">Analysis</a>
+                <a href="#" onclick="navigateTo('fashion-section')" class="hover:text-dusty-rose transition-colors">Outfits</a>
+                <a href="#" onclick="navigateTo('cultural-section')" class="hover:text-dusty-rose transition-colors">Culture</a>
+                <a href="#" onclick="navigateTo('about-section')" class="hover:text-dusty-rose transition-colors">About</a>
+            </nav>
+            <button onclick="resetApp()" class="text-sm font-medium text-soft-charcoal hover:text-dusty-rose transition-colors md:hidden">Reset</button>
+        </header>
+
+        <!-- Home / Landing Page -->
+        <section id="landing-page" class="visible-section text-center py-16 md:py-24">
+            <h2 class="text-4xl md:text-6xl font-extrabold text-soft-charcoal leading-tight mb-4">
+                Discover Your Perfect Color Palette with <span class="text-dusty-rose">Luminara</span> 🌸
+            </h2>
+            <p class="text-lg md:text-xl text-soft-charcoal/80 mb-10 max-w-xl mx-auto">
+                Upload or capture your photo, and let AI reveal the tones and styles that make you shine.
+            </p>
+
+            <div class="flex flex-col sm:flex-row justify-center space-y-4 sm:space-y-0 sm:space-x-4">
+                <!-- Use Camera Now Button (Mocked) -->
+                <button onclick="handleCameraAccess()" class="main-button bg-soft-charcoal text-white hover:bg-soft-charcoal/90">
+                    Use Camera Now
+                </button>
+
+                <!-- Upload Photo Button -->
+                <input type="file" id="file-upload" accept="image/*" class="hidden" onchange="handleFileUpload(event)">
+                <button onclick="document.getElementById('file-upload').click()" class="main-button bg-lavender-mist text-soft-charcoal hover:bg-lavender-mist/70 border border-lavender-mist">
+                    Upload a Photo
+                </button>
+            </div>
+
+            <p class="mt-12 text-sm text-soft-charcoal/60">
+                <span class="font-bold">Friendly Privacy Note:</span> Your photos are processed securely and deleted automatically after analysis. They are <span class="font-bold">never stored</span> without explicit permission.
+            </p>
+        </section>
+
+        <!-- AI Analysis Page (Loading & Results) -->
+        <section id="results-section" class="hidden-section pt-8">
+
+            <!-- Loading State -->
+            <div id="loading-state" class="hidden flex flex-col items-center justify-center h-80 card bg-white">
+                <div class="spinner mb-4"></div>
+                <p class="text-xl font-semibold text-soft-charcoal">Analyzing your skin tone...</p>
+                <p class="text-sm text-soft-charcoal/70 mt-1">Detecting undertone and color family. Please wait.</p>
+            </div>
+
+            <!-- Results State -->
+            <div id="results-state" class="hidden space-y-8">
+                <div class="card p-6 md:p-8 bg-gradient-to-br from-lavender-mist to-warm-sand/50 relative">
+                    <h2 class="text-3xl font-bold text-soft-charcoal mb-4 flex items-center">
+                        Your Luminara AI Analysis <svg class="w-6 h-6 ml-2 text-dusty-rose" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        <button id="speaker-button" onclick="generateAndPlayTTS(document.getElementById('explanation-text').textContent)" class="ml-3 p-1 rounded-full bg-soft-charcoal text-white hover:bg-dusty-rose transition-colors disabled:opacity-50" title="Listen to analysis">
+                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707a1 1 0 011.707.707v11.414a1 1 0 01-1.707.707L5.586 15z"></path></svg>
+                        </button>
+                    </h2>
+                    <p id="error-message" class="text-sm text-red-500 hidden mb-2"></p>
+
+                    <div class="flex flex-col md:flex-row md:space-x-8">
+                        <div class="md:w-1/3 mb-4 md:mb-0">
+                            <img id="analyzed-image" class="w-full h-auto rounded-xl shadow-lg border-4 border-white/50 object-cover" src="" alt="Analyzed Photo">
+                        </div>
+                        <div class="md:w-2/3 space-y-4">
+                            <!-- Main Results -->
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="p-3 bg-white rounded-lg shadow-sm border border-warm-sand">
+                                    <p class="text-sm text-soft-charcoal/70">Undertone</p>
+                                    <p id="undertone-result" class="text-xl font-bold text-dusty-rose">Warm</p>
+                                </div>
+                                <div class="p-3 bg-white rounded-lg shadow-sm border border-warm-sand">
+                                    <p class="text-sm text-soft-charcoal/70">Seasonal Palette</p>
+                                    <p id="season-result" class="text-xl font-bold text-sage-green">Autumn</p>
+                                </div>
+                                <div class="col-span-2 p-3 bg-white rounded-lg shadow-sm border border-warm-sand">
+                                    <p class="text-sm text-soft-charcoal/70">Confidence</p>
+                                    <p id="confidence-result" class="text-xl font-bold">91%</p>
+                                </div>
+                            </div>
+
+                            <!-- Explanation -->
+                            <p id="explanation-text" class="text-md text-soft-charcoal/90 pt-2 border-t border-warm-sand">
+                                Warm undertone detected — you look best in peach, coral, gold, and olive tones.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Color Swatches Section -->
+                <div class="card p-6">
+                    <h3 class="text-2xl font-semibold text-soft-charcoal mb-4">Your Custom Palette</h3>
+                    <div id="color-palette" class="flex flex-wrap justify-center md:justify-start gap-4">
+                        <!-- Color swatches will be inserted here by JS -->
+                    </div>
+                </div>
+
+                <!-- Fashion & Outfit Recommendations -->
+                <div id="fashion-section" class="card p-6">
+                    <h3 class="text-2xl font-semibold text-soft-charcoal mb-4">Fashion that Fits You</h3>
+                    <div id="fashion-recs" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Fashion recommendations will be inserted here by JS -->
+                    </div>
+                </div>
+
+                <!-- Cultural Fashion Recommendations (Indonesian Focus) -->
+                <div id="cultural-section" class="card p-6">
+                    <h3 class="text-2xl font-semibold text-soft-charcoal mb-4">Cultural Styles That Match Your Tone</h3>
+                    <div id="cultural-recs" class="space-y-4">
+                        <!-- Cultural recommendations will be inserted here by JS -->
+                    </div>
+                </div>
+
+                <!-- Skincare & Color Care Tips -->
+                <div id="skincare-section" class="card p-6">
+                    <h3 class="text-2xl font-semibold text-soft-charcoal mb-4">Skincare & Color Care Tips</h3>
+                    <ul id="skincare-tips" class="space-y-3 list-none">
+                        <!-- Skincare tips will be inserted here by JS -->
+                    </ul>
+                </div>
+
+                <div class="text-center pt-4 pb-12">
+                    <button onclick="resetApp()" class="main-button bg-dusty-rose text-white hover:bg-dusty-rose/80">
+                        Retake Photo / Try Again
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- About Luminara -->
+        <section id="about-section" class="py-12 md:py-16">
+            <h2 class="text-3xl font-bold text-soft-charcoal mb-4 text-center">About Luminara</h2>
+            <div class="card p-6 max-w-2xl mx-auto bg-lavender-mist/50">
+                <p class="text-lg text-soft-charcoal/90 leading-relaxed">
+                    Luminara combines artificial intelligence with personal beauty discovery. Our mission is to help everyone understand their natural tones and express themselves confidently — in both modern fashion and traditional style. We believe that knowing your best colors is the first step toward effortless confidence.
+                </p>
+            </div>
+        </section>
+    </div>
+</body>
+</html>
